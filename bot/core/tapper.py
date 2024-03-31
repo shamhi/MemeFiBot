@@ -10,7 +10,8 @@ from pyrogram.raw.functions.messages import RequestWebView
 
 from bot.config import settings
 from bot.utils import logger
-from bot.utils.graphql.enums import Query, OperationName
+from bot.utils.graphql import Query, OperationName
+from bot.utils.boosts import BoostType
 from bot.exceptions import InvalidSession
 from .headers import headers
 
@@ -134,6 +135,26 @@ class Tapper:
 
             return False
 
+    async def apply_boost(self, http_client: aiohttp.ClientSession, boost_type: BoostType):
+        try:
+            json_data = {
+                'operationName': OperationName.telegramGameActivateBooster,
+                'query': Query.telegramGameActivateBooster,
+                'variables': {
+                    'boosterType': boost_type
+                }
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            return True
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while Apply {boost_type} Boost: {error}")
+            await asyncio.sleep(delay=3)
+
+            return False
+
     async def send_taps(self, http_client: aiohttp.ClientSession, nonce: str, taps: int):
         try:
             json_data = {
@@ -194,7 +215,7 @@ class Tapper:
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
 
                     if active_turbo:
-                        taps += 500
+                        taps += 50000
                         if time() - turbo_time > 10:
                             active_turbo = False
                             turbo_time = 0
@@ -205,6 +226,10 @@ class Tapper:
                     new_balance = profile_data['coinsAmount']
                     calc_taps = abs(new_balance - balance)
                     balance = new_balance
+
+                    free_boosts = profile_data['freeBoosts']
+                    turbo_boost_count = free_boosts['currentTurboAmount']
+                    energy_boost_count = free_boosts['currentRefillEnergyAmount']
 
                     nonce = profile_data['nonce']
 
@@ -226,7 +251,34 @@ class Tapper:
 
 
                     if active_turbo is False:
-                        ...  # TODO: Auto apply and upgrade boosts 31.03.2024
+                        if (energy_boost_count > 0
+                                and available_energy < settings.MIN_AVAILABLE_ENERGY
+                                and settings.APPLY_DAILY_ENERGY is True):
+                            logger.info(f"{self.session_name} | Sleep 5s before activating the daily energy boost")
+                            await asyncio.sleep(delay=5)
+
+                            status = await self.apply_boost(http_client=http_client, boost_type=BoostType.Recharge)
+                            if status is True:
+                                logger.success(f"{self.session_name} | Energy boost applied")
+
+                                await asyncio.sleep(delay=1)
+
+                            continue
+
+                        if turbo_boost_count > 0 and settings.APPLY_DAILY_TURBO is True:
+                            logger.info(f"{self.session_name} | Sleep 5s before activating the daily turbo boost")
+                            await asyncio.sleep(delay=5)
+
+                            status = await self.apply_boost(http_client=http_client, boost_type=BoostType.Turbo)
+                            if status is True:
+                                logger.success(f"{self.session_name} | Turbo boost applied")
+
+                                await asyncio.sleep(delay=1)
+
+                                active_turbo = True
+                                turbo_time = time()
+
+                            continue
 
                         if available_energy < settings.MIN_AVAILABLE_ENERGY:
                             logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
