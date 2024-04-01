@@ -1,6 +1,12 @@
 from enum import Enum
 
 
-class BoostType(str, Enum):
-    Turbo = "Turbo"
-    Recharge = "Recharge"
+class FreeBoostType(str, Enum):
+    TURBO = "Turbo"
+    ENERGY = "Recharge"
+
+
+class UpgradableBoostType(str, Enum):
+    TAP = "Damage"
+    ENERGY = "EnergyCap"
+    CHARGE = "EnergyRechargeRate"
