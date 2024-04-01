@@ -22,12 +22,13 @@
 | **API_ID / API_HASH**    | Данные платформы, с которой запускать сессию Telegram (сток - Android)                      |
 | **MIN_AVAILABLE_ENERGY** | Минимальное количество доступной энергии, при достижении которой будет задержка (напр. 100) |
 | **SLEEP_BY_MIN_ENERGY**  | Задержка при достижении минимальной энергии в секундах (напр. 200)                          |
+| **ADD_TAPS_ON_TURBO**    | Сколько тапов будет добавлено при активации турбо (напр. 2500)                              |
 | **AUTO_UPGRADE_TAP**     | Улучшать ли тап (True / False)                                                              |
-| **MAX_TAP_LEVEL**        | Максимальный уровень прокачки тапа (до 20)                                                  |
+| **MAX_TAP_LEVEL**        | Максимальный уровень прокачки тапа (напр. 5)                                                |
 | **AUTO_UPGRADE_ENERGY**  | Улучшать ли энергию (True / False)                                                          |
-| **MAX_ENERGY_LEVEL**     | Максимальный уровень прокачки энергии (до 20)                                               |
+| **MAX_ENERGY_LEVEL**     | Максимальный уровень прокачки энергии (напр. 5)                                             |
 | **AUTO_UPGRADE_CHARGE**  | Улучшать ли заряд энергии (True / False)                                                    |
-| **MAX_CHARGE_LEVEL**     | Максимальный уровень прокачки заряда энергии (до 5)                                         |
+| **MAX_CHARGE_LEVEL**     | Максимальный уровень прокачки заряда энергии (напр. 5)                                      |
 | **APPLY_DAILY_ENERGY**   | Использовать ли ежедневный бесплатный буст энергии (True / False)                           |
 | **APPLY_DAILY_TURBO**    | Использовать ли ежедневный бесплатный буст турбо (True / False)                             |
 | **RANDOM_CLICKS_COUNT**  | Рандомное количество тапов (напр. 50,200)                                                   |
@@ -56,8 +57,8 @@
 ~/MemeFiBot >>> python -m venv venv
 ~/MemeFiBot >>> venv\Scripts\activate
 ~/MemeFiBot >>> pip install -r requirements.txt
-~/MemeFiBot >>> # Копируете содержимое .env-example
-~/MemeFiBot >>> # Создаете файл .env, в котором вставляете скопированные данные из .env-example и обязательно указываете ваши API_ID и API_HASH, остальное берется по умолчанию
+~/MemeFiBot >>> copy .env-example .env
+~/MemeFiBot >>> # Указываете ваши API_ID и API_HASH, остальное берется по умолчанию
 ~/MemeFiBot >>> python main.py
 ```
 
@@ -67,6 +68,6 @@
 # Или
 ~/MemeFiBot >>> python3 main.py -a (1/2)
 
-# 1 - Запускает регистратор сессии
-# 2 - Запускает бота
+# 1 - Создает сессию
+# 2 - Запускает кликер
 ```
