@@ -215,7 +215,7 @@ class Tapper:
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
 
                     if active_turbo:
-                        taps += 50000
+                        taps += 500
                         if time() - turbo_time > 10:
                             active_turbo = False
                             turbo_time = 0
