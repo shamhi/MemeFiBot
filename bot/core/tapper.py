@@ -11,7 +11,7 @@ from pyrogram.raw.functions.messages import RequestWebView
 from bot.config import settings
 from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
-from bot.utils.boosts import BoostType
+from bot.utils.boosts import FreeBoostType, UpgradableBoostType
 from bot.exceptions import InvalidSession
 from .headers import headers
 
@@ -135,7 +135,7 @@ class Tapper:
 
             return False
 
-    async def apply_boost(self, http_client: aiohttp.ClientSession, boost_type: BoostType):
+    async def apply_boost(self, http_client: aiohttp.ClientSession, boost_type: FreeBoostType):
         try:
             json_data = {
                 'operationName': OperationName.telegramGameActivateBooster,
@@ -153,6 +153,23 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while Apply {boost_type} Boost: {error}")
             await asyncio.sleep(delay=3)
 
+            return False
+
+    async def upgrade_boost(self, http_client: aiohttp.ClientSession, boost_type: UpgradableBoostType):
+        try:
+            json_data = {
+                'operationName': OperationName.telegramGamePurchaseUpgrade,
+                'query': Query.telegramGamePurchaseUpgrade,
+                'variables': {
+                    'upgradeType': boost_type
+                }
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            return True
+        except Exception:
             return False
 
     async def send_taps(self, http_client: aiohttp.ClientSession, nonce: str, taps: int):
@@ -215,21 +232,28 @@ class Tapper:
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
 
                     if active_turbo:
-                        taps += 500
+                        taps += settings.ADD_TAPS_ON_TURBO
                         if time() - turbo_time > 10:
                             active_turbo = False
                             turbo_time = 0
 
                     profile_data = await self.send_taps(http_client=http_client, nonce=nonce, taps=taps)
 
+                    if not profile_data:
+                        continue
+
                     available_energy = profile_data['currentEnergy']
                     new_balance = profile_data['coinsAmount']
-                    calc_taps = abs(new_balance - balance)
+                    calc_taps = new_balance - balance
                     balance = new_balance
 
                     free_boosts = profile_data['freeBoosts']
                     turbo_boost_count = free_boosts['currentTurboAmount']
                     energy_boost_count = free_boosts['currentRefillEnergyAmount']
+
+                    next_tap_level = profile_data['weaponLevel'] + 1
+                    next_energy_level = profile_data['energyLimitLevel'] + 1
+                    next_charge_level = profile_data['energyRechargeLevel'] + 1
 
                     nonce = profile_data['nonce']
 
@@ -257,7 +281,7 @@ class Tapper:
                             logger.info(f"{self.session_name} | Sleep 5s before activating the daily energy boost")
                             await asyncio.sleep(delay=5)
 
-                            status = await self.apply_boost(http_client=http_client, boost_type=BoostType.Recharge)
+                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.ENERGY)
                             if status is True:
                                 logger.success(f"{self.session_name} | Energy boost applied")
 
@@ -269,7 +293,7 @@ class Tapper:
                             logger.info(f"{self.session_name} | Sleep 5s before activating the daily turbo boost")
                             await asyncio.sleep(delay=5)
 
-                            status = await self.apply_boost(http_client=http_client, boost_type=BoostType.Turbo)
+                            status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
                             if status is True:
                                 logger.success(f"{self.session_name} | Turbo boost applied")
 
@@ -279,6 +303,31 @@ class Tapper:
                                 turbo_time = time()
 
                             continue
+
+                        if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
+                            status = await self.upgrade_boost(http_client=http_client,
+                                                              boost_type=UpgradableBoostType.TAP)
+                            if status is True:
+                                logger.success(f"{self.session_name} | Tap upgraded to {next_tap_level} lvl")
+
+                                await asyncio.sleep(delay=1)
+
+
+                        if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
+                            status = await self.upgrade_boost(http_client=http_client,
+                                                              boost_type=UpgradableBoostType.ENERGY)
+                            if status is True:
+                                logger.success(f"{self.session_name} | Energy upgraded to {next_energy_level} lvl")
+
+                                await asyncio.sleep(delay=1)
+
+                        if settings.AUTO_UPGRADE_CHARGE is True and next_tap_level <= settings.MAX_CHARGE_LEVEL:
+                            status = await self.upgrade_boost(http_client=http_client,
+                                                              boost_type=UpgradableBoostType.CHARGE)
+                            if status is True:
+                                logger.success(f"{self.session_name} | Charge upgraded to {next_charge_level} lvl")
+
+                                await asyncio.sleep(delay=1)
 
                         if available_energy < settings.MIN_AVAILABLE_ENERGY:
                             logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
