@@ -25,5 +25,7 @@ class Settings(BaseSettings):
     RANDOM_TAPS_COUNT: list[int] = [50, 200]
     SLEEP_BETWEEN_TAP: list[int] = [15, 25]
 
+    USE_PROXY_FROM_FILE: bool = False
+
 
 settings = Settings()
