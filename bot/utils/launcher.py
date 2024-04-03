@@ -2,8 +2,10 @@ import os
 import glob
 import asyncio
 import argparse
+from itertools import cycle
 
 from pyrogram import Client
+from better_proxy import Proxy
 from TGConvertor import SessionManager
 
 from bot.config import settings
@@ -30,6 +32,16 @@ def get_session_names() -> list[str]:
     session_names = [os.path.splitext(os.path.basename(file))[0] for file in session_names]
 
     return session_names
+
+
+def get_proxies() -> list[Proxy]:
+    if settings.USE_PROXY_FROM_FILE:
+        with open(file='bot/config/proxies.txt', encoding='utf-8-sig') as file:
+            proxies = [Proxy.from_str(proxy=row.strip()).as_url for row in file]
+    else:
+        proxies = []
+
+    return proxies
 
 
 async def get_session_string(session_name: str) -> str | None:
@@ -97,6 +109,9 @@ async def process() -> None:
 
 
 async def run_tasks(tg_clients: list[Client]):
-    tasks = [asyncio.create_task(run_tapper(tg_client=tg_client)) for tg_client in tg_clients]
+    proxies = get_proxies()
+    proxies_cycle = cycle(proxies) if proxies else None
+    tasks = [asyncio.create_task(run_tapper(tg_client=tg_client, proxy=next(proxies_cycle) if proxies_cycle else None))
+             for tg_client in tg_clients]
 
     await asyncio.gather(*tasks)
