@@ -32,6 +32,7 @@
 | **APPLY_DAILY_TURBO**    | Whether to use the daily free turbo boost (True / False)                               |
 | **RANDOM_CLICKS_COUNT**  | Random number of taps (eg 50,200)                                                      |
 | **SLEEP_BETWEEN_TAP**    | Random delay between taps in seconds (eg 10,25)                                        |
+| **USE_PROXY_FROM_FILE**  | Whether to use proxy from the `bot/config/proxies.txt` file (True / False)             |
 
 ## Installation
 You can download [**Repository**](https://github.com/shamhi/MemeFiBot) by cloning it to your system and installing the necessary dependencies:
