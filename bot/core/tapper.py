@@ -350,7 +350,7 @@ class Tapper:
 
                                 await asyncio.sleep(delay=1)
 
-                        if settings.AUTO_UPGRADE_CHARGE is True and next_tap_level <= settings.MAX_CHARGE_LEVEL:
+                        if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
                             status = await self.upgrade_boost(http_client=http_client,
                                                               boost_type=UpgradableBoostType.CHARGE)
                             if status is True:
