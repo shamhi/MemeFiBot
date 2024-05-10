@@ -7,21 +7,26 @@ import aiohttp
 from aiohttp_proxy import ProxyConnector
 from better_proxy import Proxy
 from pyrogram import Client
+from pyrogram.types import User
 from pyrogram.errors import Unauthorized, UserDeactivated, AuthKeyUnregistered
 from pyrogram.raw.functions.messages import RequestWebView
+from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from bot.config import settings
 from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
 from bot.exceptions import InvalidSession
+from db.functions import get_user_proxy, get_user_agent, save_log
 from .headers import headers
 
 
 class Tapper:
-    def __init__(self, tg_client: Client):
+    def __init__(self, tg_client: Client, db_pool: async_sessionmaker, user_data: User):
         self.session_name = tg_client.name
         self.tg_client = tg_client
+        self.db_pool = db_pool
+        self.user_data = user_data
 
         self.GRAPHQL_URL = 'https://api-gw-tg.memefi.club/graphql'
 
@@ -227,6 +232,9 @@ class Tapper:
 
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
+        user_agent = await get_user_agent(db_pool=self.db_pool, phone_number=self.user_data.phone_number)
+        headers['User-Agent'] = user_agent
+
         async with aiohttp.ClientSession(headers=headers, connector=proxy_conn) as http_client:
             if proxy:
                 await self.check_proxy(http_client=http_client, proxy=proxy)
@@ -269,6 +277,12 @@ class Tapper:
                     profile_data = await self.send_taps(http_client=http_client, nonce=nonce, taps=taps)
 
                     if not profile_data:
+                        await save_log(
+                            db_pool=self.db_pool,
+                            phone=self.user_data.phone_number,
+                            status="ERROR",
+                            amount=balance,
+                        )
                         continue
 
                     available_energy = profile_data['currentEnergy']
@@ -294,6 +308,13 @@ class Tapper:
                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps}</g>) | "
                                    f"Boss health: <e>{boss_current_health}</e>")
 
+                    await save_log(
+                        db_pool=self.db_pool,
+                        phone=self.user_data.phone_number,
+                        status="TAP",
+                        amount=balance,
+                    )
+
                     if boss_current_health <= 0:
                         logger.info(f"{self.session_name} | Setting next boss: <m>{current_boss_level+1}</m> lvl")
 
@@ -302,6 +323,12 @@ class Tapper:
                             logger.success(f"{self.session_name} | Successful setting next boss: "
                                            f"<m>{current_boss_level+1}</m>")
 
+                            await save_log(
+                                db_pool=self.db_pool,
+                                phone=self.user_data.phone_number,
+                                status="SET NEXT BOSS",
+                                amount=balance,
+                            )
 
                     if active_turbo is False:
                         if (energy_boost_count > 0
@@ -314,6 +341,13 @@ class Tapper:
                             if status is True:
                                 logger.success(f"{self.session_name} | Energy boost applied")
 
+                                await save_log(
+                                    db_pool=self.db_pool,
+                                    phone=self.user_data.phone_number,
+                                    status="APPLY ENERGY BOOST",
+                                    amount=balance,
+                                )
+
                                 await asyncio.sleep(delay=1)
 
                             continue
@@ -325,6 +359,13 @@ class Tapper:
                             status = await self.apply_boost(http_client=http_client, boost_type=FreeBoostType.TURBO)
                             if status is True:
                                 logger.success(f"{self.session_name} | Turbo boost applied")
+
+                                await save_log(
+                                    db_pool=self.db_pool,
+                                    phone=self.user_data.phone_number,
+                                    status="APPLY TURBO BOOST",
+                                    amount=balance,
+                                )
 
                                 await asyncio.sleep(delay=1)
 
@@ -339,14 +380,27 @@ class Tapper:
                             if status is True:
                                 logger.success(f"{self.session_name} | Tap upgraded to {next_tap_level} lvl")
 
-                                await asyncio.sleep(delay=1)
+                                await save_log(
+                                    db_pool=self.db_pool,
+                                    phone=self.user_data.phone_number,
+                                    status="UPGRADE TAP",
+                                    amount=balance,
+                                )
 
+                                await asyncio.sleep(delay=1)
 
                         if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
                             status = await self.upgrade_boost(http_client=http_client,
                                                               boost_type=UpgradableBoostType.ENERGY)
                             if status is True:
                                 logger.success(f"{self.session_name} | Energy upgraded to {next_energy_level} lvl")
+
+                                await save_log(
+                                    db_pool=self.db_pool,
+                                    phone=self.user_data.phone_number,
+                                    status="UPGRADE ENERGY",
+                                    amount=balance,
+                                )
 
                                 await asyncio.sleep(delay=1)
 
@@ -355,6 +409,13 @@ class Tapper:
                                                               boost_type=UpgradableBoostType.CHARGE)
                             if status is True:
                                 logger.success(f"{self.session_name} | Charge upgraded to {next_charge_level} lvl")
+
+                                await save_log(
+                                    db_pool=self.db_pool,
+                                    phone=self.user_data.phone_number,
+                                    status="UPGRADE CHARGE",
+                                    amount=balance,
+                                )
 
                                 await asyncio.sleep(delay=1)
 
@@ -383,8 +444,15 @@ class Tapper:
                     await asyncio.sleep(delay=sleep_between_clicks)
 
 
-async def run_tapper(tg_client: Client, proxy: str | None):
+async def run_tapper(tg_client: Client, db_pool: async_sessionmaker):
     try:
-        await Tapper(tg_client=tg_client).run(proxy=proxy)
+        async with tg_client:
+            user_data = await tg_client.get_me()
+
+        proxy = None
+        if settings.USE_PROXY_FROM_DB:
+            proxy = await get_user_proxy(db_pool=db_pool, phone_number=user_data.phone_number)
+
+        await Tapper(tg_client=tg_client, db_pool=db_pool, user_data=user_data).run(proxy=proxy)
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")
