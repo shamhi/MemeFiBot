@@ -23,8 +23,6 @@ class Tapper:
         self.session_name = tg_client.name
         self.tg_client = tg_client
 
-        self.GRAPHQL_URL = 'https://api-gw-tg.memefi.club/graphql'
-
     async def get_tg_web_data(self, proxy: str | None):
         if proxy:
             proxy = Proxy.from_str(proxy)
