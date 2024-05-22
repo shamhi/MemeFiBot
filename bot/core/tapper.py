@@ -233,6 +233,7 @@ class Tapper:
             return False
 
     async def run(self, proxy: str | None):
+        access_token_created_time = 0
         turbo_time = 0
         active_turbo = False
 
@@ -249,23 +250,19 @@ class Tapper:
 
             while True:
                 try:
-                    local_token = local_db[self.session_name]['Token']
-                    if not local_token:
+                    if time() - access_token_created_time >= 1800:
                         tg_web_data = await self.get_tg_web_data(proxy=proxy)
                         access_token = await self.get_access_token(http_client=http_client, tg_web_data=tg_web_data)
 
                         http_client.headers["Authorization"] = f"Bearer {access_token}"
 
-                        local_db[self.session_name]['Token'] = access_token
+                        access_token_created_time = time()
 
                         profile_data = await self.get_profile_data(http_client=http_client)
 
                         balance = profile_data['coinsAmount']
 
                         nonce = profile_data['nonce']
-
-                        local_db[self.session_name]['Balance'] = balance
-                        local_db[self.session_name]['Nonce'] = nonce
 
                         current_boss = profile_data['currentBoss']
                         current_boss_level = current_boss['level']
@@ -276,11 +273,6 @@ class Tapper:
                                     f"Boss health: <e>{boss_current_health}</e> out of <r>{boss_max_health}</r>")
 
                         await asyncio.sleep(delay=.5)
-                    else:
-                        http_client.headers["Authorization"] = f"Bearer {local_token}"
-
-                        balance = local_db[self.session_name]['Balance']
-                        nonce = local_db[self.session_name]['Nonce']
 
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
 
@@ -306,8 +298,6 @@ class Tapper:
                     calc_taps = new_balance - balance
                     balance = new_balance
 
-                    local_db[self.session_name]['Balance'] = balance
-
                     free_boosts = profile_data['freeBoosts']
                     turbo_boost_count = free_boosts['currentTurboAmount']
                     energy_boost_count = free_boosts['currentRefillEnergyAmount']
@@ -317,8 +307,6 @@ class Tapper:
                     next_charge_level = profile_data['energyRechargeLevel'] + 1
 
                     nonce = profile_data['nonce']
-
-                    local_db[self.session_name]['Nonce'] = nonce
 
                     current_boss = profile_data['currentBoss']
                     current_boss_level = current_boss['level']
