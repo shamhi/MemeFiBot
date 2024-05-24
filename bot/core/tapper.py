@@ -236,6 +236,7 @@ class Tapper:
         access_token_created_time = 0
         turbo_time = 0
         active_turbo = False
+        errors_count = 0
 
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
@@ -250,6 +251,10 @@ class Tapper:
 
             while True:
                 try:
+                    if errors_count > 5:
+                        logger.info(f"{self.session_name} | Next sessions pack")
+                        return
+
                     if time() - access_token_created_time >= 1800:
                         tg_web_data = await self.get_tg_web_data(proxy=proxy)
                         access_token = await self.get_access_token(http_client=http_client, tg_web_data=tg_web_data)
@@ -262,6 +267,7 @@ class Tapper:
 
                         if not profile_data:
                             nonce = ''
+                            errors_count += 1
                             continue
 
                         balance = profile_data['coinsAmount']
@@ -295,6 +301,7 @@ class Tapper:
                             status="ERROR",
                             amount=balance,
                         )
+                        errors_count += 1
                         continue
 
                     available_energy = profile_data['currentEnergy']
