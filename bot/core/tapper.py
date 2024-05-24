@@ -260,6 +260,10 @@ class Tapper:
 
                         profile_data = await self.get_profile_data(http_client=http_client)
 
+                        if not profile_data:
+                            nonce = ''
+                            continue
+
                         balance = profile_data['coinsAmount']
 
                         nonce = profile_data['nonce']
