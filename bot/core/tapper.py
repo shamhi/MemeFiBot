@@ -267,6 +267,7 @@ class Tapper:
 
                         if not profile_data:
                             nonce = ''
+                            balance = 0
                             errors_count += 1
                             continue
 
