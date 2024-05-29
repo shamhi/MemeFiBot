@@ -3,6 +3,11 @@ from enum import Enum
 
 class Query(str, Enum):
     QUERY_GAME_CONFIG = "query QUERY_GAME_CONFIG {\n  telegramGameGetConfig {\n    ...FragmentBossFightConfig\n    __typename\n  }\n}\n\nfragment FragmentBossFightConfig on TelegramGameConfigOutput {\n  _id\n  coinsAmount\n  currentEnergy\n  maxEnergy\n  weaponLevel\n  energyLimitLevel\n  energyRechargeLevel\n  tapBotLevel\n  currentBoss {\n    _id\n    level\n    currentHealth\n    maxHealth\n    __typename\n  }\n  freeBoosts {\n    _id\n    currentTurboAmount\n    maxTurboAmount\n    turboLastActivatedAt\n    turboAmountLastRechargeDate\n    currentRefillEnergyAmount\n    maxRefillEnergyAmount\n    refillEnergyLastActivatedAt\n    refillEnergyAmountLastRechargeDate\n    __typename\n  }\n  nonce\n  __typename\n}"
+    QueryTelegramUserMe = "query QueryTelegramUserMe {\n  telegramUserMe {\n    firstName\n    lastName\n    telegramId\n    username\n    referralCode\n    isDailyRewardClaimed\n    referral {\n      username\n      lastName\n      firstName\n      bossLevel\n      coinsAmount\n      __typename\n    }\n    isReferralInitialJoinBonusAvailable\n    league\n    leagueIsOverTop10k\n    leaguePosition\n    _id\n    __typename\n  }\n}"
+    DoubleRefBonusExpiration = "query DoubleRefBonusExpiration {\n  referralDoubleReferralBonusExpiration\n}"
+    TapbotConfig = "fragment FragmentTapBotConfig on TelegramGameTapbotOutput {\n  damagePerSec\n  endsAt\n  id\n  isPurchased\n  startsAt\n  totalAttempts\n  usedAttempts\n  __typename\n}\n\nquery TapbotConfig {\n  telegramGameTapbotGetConfig {\n    ...FragmentTapBotConfig\n    __typename\n  }\n}"
+    ClanMy = "query ClanMy {\n  clanMy {\n    id\n    clanDetails {\n      id\n      name\n      username\n      description\n      avatarImageUrl\n      rarity\n      membersCount\n      coinsAmount\n      createdAt\n      __typename\n    }\n    clanOwner {\n      id\n      userId\n      username\n      firstName\n      lastName\n      avatarImageUrl\n      currentBossLevel\n      coinsAmount\n      isClanOwner\n      isMe\n      __typename\n    }\n    __typename\n  }\n}"
+    TelegramBossKillRewards = "query TelegramBossKillRewards {\n  telegramBossKillRewards {\n    id\n    level\n    amount\n    __typename\n  }\n  telegramUserReferralConfig {\n    id\n    level\n    rewardAmount\n    __typename\n  }\n  telegramBossList {\n    health\n    level\n    name\n    __typename\n  }\n}"
     MutationTelegramUserLogin = "mutation MutationTelegramUserLogin($webAppData: TelegramWebAppDataInput!) {\n  telegramUserLogin(webAppData: $webAppData) {\n    access_token\n    __typename\n  }\n}"
     MutationGameProcessTapsBatch = "mutation MutationGameProcessTapsBatch($payload: TelegramGameTapsBatchInput!) {\n  telegramGameProcessTapsBatch(payload: $payload) {\n    ...FragmentBossFightConfig\n    __typename\n  }\n}\n\nfragment FragmentBossFightConfig on TelegramGameConfigOutput {\n  _id\n  coinsAmount\n  currentEnergy\n  maxEnergy\n  weaponLevel\n  energyLimitLevel\n  energyRechargeLevel\n  tapBotLevel\n  currentBoss {\n    _id\n    level\n    currentHealth\n    maxHealth\n    __typename\n  }\n  freeBoosts {\n    _id\n    currentTurboAmount\n    maxTurboAmount\n    turboLastActivatedAt\n    turboAmountLastRechargeDate\n    currentRefillEnergyAmount\n    maxRefillEnergyAmount\n    refillEnergyLastActivatedAt\n    refillEnergyAmountLastRechargeDate\n    __typename\n  }\n  nonce\n  __typename\n}"
     telegramGameSetNextBoss = "mutation telegramGameSetNextBoss {\n  telegramGameSetNextBoss {\n    ...FragmentBossFightConfig\n    __typename\n  }\n}\n\nfragment FragmentBossFightConfig on TelegramGameConfigOutput {\n  _id\n  coinsAmount\n  currentEnergy\n  maxEnergy\n  weaponLevel\n  energyLimitLevel\n  energyRechargeLevel\n  tapBotLevel\n  currentBoss {\n    _id\n    level\n    currentHealth\n    maxHealth\n    __typename\n  }\n  freeBoosts {\n    _id\n    currentTurboAmount\n    maxTurboAmount\n    turboLastActivatedAt\n    turboAmountLastRechargeDate\n    currentRefillEnergyAmount\n    maxRefillEnergyAmount\n    refillEnergyLastActivatedAt\n    refillEnergyAmountLastRechargeDate\n    __typename\n  }\n  nonce\n  __typename\n}"
@@ -10,10 +15,13 @@ class Query(str, Enum):
     telegramGamePurchaseUpgrade = "mutation telegramGamePurchaseUpgrade($upgradeType: UpgradeType!) {\n  telegramGamePurchaseUpgrade(type: $upgradeType) {\n    ...FragmentBossFightConfig\n    __typename\n  }\n}\n\nfragment FragmentBossFightConfig on TelegramGameConfigOutput {\n  _id\n  coinsAmount\n  currentEnergy\n  maxEnergy\n  weaponLevel\n  energyLimitLevel\n  energyRechargeLevel\n  tapBotLevel\n  currentBoss {\n    _id\n    level\n    currentHealth\n    maxHealth\n    __typename\n  }\n  freeBoosts {\n    _id\n    currentTurboAmount\n    maxTurboAmount\n    turboLastActivatedAt\n    turboAmountLastRechargeDate\n    currentRefillEnergyAmount\n    maxRefillEnergyAmount\n    refillEnergyLastActivatedAt\n    refillEnergyAmountLastRechargeDate\n    __typename\n  }\n  nonce\n  __typename\n}"
 
 
-
-
 class OperationName(str, Enum):
     QUERY_GAME_CONFIG = "QUERY_GAME_CONFIG"
+    QueryTelegramUserMe = "QueryTelegramUserMe"
+    DoubleRefBonusExpiration = "DoubleRefBonusExpiration"
+    TapbotConfig = "TapbotConfig"
+    ClanMy = "ClanMy"
+    TelegramBossKillRewards = "TelegramBossKillRewards"
     MutationTelegramUserLogin = "MutationTelegramUserLogin"
     MutationGameProcessTapsBatch = "MutationGameProcessTapsBatch"
     telegramGameSetNextBoss = "telegramGameSetNextBoss"

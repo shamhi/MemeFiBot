@@ -17,7 +17,7 @@ from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
 from bot.exceptions import InvalidSession
-from db.functions import get_user_proxy, get_user_agent, save_log
+from db.functions import get_user_proxy, get_user_agent, save_log, get_tap_time, set_tap_time
 from .headers import headers
 
 
@@ -140,6 +140,81 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while getting Profile Data: {error}")
             await asyncio.sleep(delay=3)
 
+    async def get_me(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.QueryTelegramUserMe,
+                'query': Query.QueryTelegramUserMe,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+            me = response_json['data']['telegramUserMe']
+
+            return me
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while getting Me: {error}")
+            await asyncio.sleep(delay=3)
+
+    async def get_double_ref_bonus(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.DoubleRefBonusExpiration,
+                'query': Query.DoubleRefBonusExpiration,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+            double_bonus = response_json['data']['referralDoubleReferralBonusExpiration']
+
+            return double_bonus
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while getting Double Ref Bonus: {error}")
+            await asyncio.sleep(delay=3)
+
+    async def get_tap_bot_config(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.TapbotConfig,
+                'query': Query.TapbotConfig,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+            tap_bot_config = response_json['data']['telegramGameTapbotGetConfig']
+
+            return tap_bot_config
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while getting Tap Bot Config: {error}")
+            await asyncio.sleep(delay=3)
+
+    async def get_clan_my(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.ClanMy,
+                'query': Query.ClanMy,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+            clan_my = response_json['data']['clanMy']
+
+            return clan_my
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while getting Clan My: {error}")
+            await asyncio.sleep(delay=3)
 
     async def set_next_boss(self, http_client: aiohttp.ClientSession):
         try:
@@ -240,6 +315,12 @@ class Tapper:
 
         proxy_conn = ProxyConnector().from_url(proxy) if proxy else None
 
+        tap_time = await get_tap_time(db_pool=self.db_pool, phone_number=self.user_data.phone_number)
+
+        if time() < tap_time:
+            logger.info(f"{self.session_name} | Next tap in <y>{tap_time - time()}s</y> | Next sessions pack")
+            return
+
         user_agent = await get_user_agent(db_pool=self.db_pool, phone_number=self.user_data.phone_number)
         headers['User-Agent'] = user_agent
 
@@ -263,6 +344,8 @@ class Tapper:
 
                         access_token_created_time = time()
 
+                        await self.get_me(http_client=http_client)
+
                         profile_data = await self.get_profile_data(http_client=http_client)
 
                         if not profile_data:
@@ -284,6 +367,10 @@ class Tapper:
                                     f"Boss health: <e>{boss_current_health}</e> out of <r>{boss_max_health}</r>")
 
                         await asyncio.sleep(delay=.5)
+
+                        await self.get_double_ref_bonus(http_client=http_client)
+                        await self.get_tap_bot_config(http_client=http_client)
+                        await self.get_clan_my(http_client=http_client)
 
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
 
@@ -448,6 +535,10 @@ class Tapper:
                                 continue
 
                         if available_energy < settings.MIN_AVAILABLE_ENERGY:
+                            await set_tap_time(db_pool=self.db_pool,
+                                               phone_number=self.user_data.phone_number,
+                                               timestamp=time() + settings.ADD_SECONDS_TO_NEXT_TAP)
+
                             logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
                             logger.info(f"{self.session_name} | Next sessions pack")
 
