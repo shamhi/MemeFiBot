@@ -190,6 +190,13 @@ class Tapper:
 
     async def send_taps(self, http_client: aiohttp.ClientSession, nonce: str, taps: int):
         try:
+            vector = []
+
+            for _ in range(taps):
+                vector.append(str(randint(1, 4)))
+
+            vector = ','.join(vector)
+            
             json_data = {
                 'operationName': OperationName.MutationGameProcessTapsBatch,
                 'query': Query.MutationGameProcessTapsBatch,
@@ -197,6 +204,7 @@ class Tapper:
                     'payload': {
                         'nonce': nonce,
                         'tapsCount': taps,
+                        'vector': vector,
                     },
                 }
             }
