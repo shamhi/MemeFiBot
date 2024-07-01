@@ -31,20 +31,16 @@
 | **MAX_CHARGE_LEVEL**     | Максимальный уровень прокачки заряда энергии (напр. 5)                                                        |
 | **APPLY_DAILY_ENERGY**   | Использовать ли ежедневный бесплатный буст энергии (True / False)                                             |
 | **APPLY_DAILY_TURBO**    | Использовать ли ежедневный бесплатный буст турбо (True / False)                                               |
-| **RANDOM_CLICKS_COUNT**  | Рандомное количество тапов (напр. 50,200)                                                                     |
-| **SLEEP_BETWEEN_TAP**    | Рандомная задержка между тапами в секундах (напр. 10,25)                                                      |
+| **RANDOM_CLICKS_COUNT**  | Рандомное количество тапов (напр. [50,200])                                                                   |
+| **SLEEP_BETWEEN_TAP**    | Рандомная задержка между тапами в секундах (напр. [10,25])                                                    |
 | **USE_PROXY_FROM_FILE**  | Использовать-ли прокси из файла `bot/config/proxies.txt` (True / False)                                       |
-| **USE_TAP_BOT**     | Использовать ли тап-бота (True / False)                                                                       |
-| **EMERGENCY_STOP**     | Использовать аварийный стоп (True / False), если True - при ошибке протокола стоп бота, чтобы не получить бан |
+| **USE_TAP_BOT**          | Использовать ли тап-бота (True / False)                                                                       |
+| **EMERGENCY_STOP**       | Использовать аварийный стоп (True / False), если True - при ошибке протокола стоп бота, чтобы не получить бан |
 
 ## Установка
 Вы можете скачать [**Репозиторий**](https://github.com/shamhi/MemeFiBot) клонированием на вашу систему и установкой необходимых зависимостей:
 ```shell
 ~ >>> git clone https://github.com/shamhi/MemeFiBot.git 
-~ >>> cd MemeFiBot
-
-# Если вы используете Telethon сессии, то клонируйте ветку "converter"
-~ >>> git clone https://github.com/shamhi/MemeFiBot.git -b converter
 ~ >>> cd MemeFiBot
 
 # Linux
