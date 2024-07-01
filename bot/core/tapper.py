@@ -129,7 +129,7 @@ class Tapper:
             response_json = await response.json()
 
             if 'errors' in response_json:
-                raise InvalidProtocol('get_profile_data msg: {response_json["errors"][0]["message"]}')
+                raise InvalidProtocol(f'get_profile_data msg: {response_json["errors"][0]["message"]}')
 
             profile_data = response_json['data']['telegramGameGetConfig']
 
@@ -152,7 +152,7 @@ class Tapper:
             response_json = await response.json()
 
             if 'errors' in response_json:
-                raise InvalidProtocol('get_bot_config msg: {response_json["errors"][0]["message"]}')
+                raise InvalidProtocol(f'get_bot_config msg: {response_json["errors"][0]["message"]}')
 
             return response_json['data']['telegramGameTapbotGetConfig']
         except Exception as error:
@@ -173,7 +173,7 @@ class Tapper:
             response_json = await response.json()
 
             if 'errors' in response_json:
-                raise InvalidProtocol('start_bot msg: {response_json["errors"][0]["message"]}')
+                raise InvalidProtocol(f'start_bot msg: {response_json["errors"][0]["message"]}')
 
             return response_json['data']['telegramGameTapbotStart']
         except Exception as error:
