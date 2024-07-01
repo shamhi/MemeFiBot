@@ -15,7 +15,9 @@ from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
 from bot.exceptions import InvalidSession
+from bot.exceptions import InvalidProtocol
 from .headers import headers
+from datetime import datetime
 
 
 class Tapper:
@@ -125,6 +127,10 @@ class Tapper:
             response.raise_for_status()
 
             response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'get_profile_data msg: {response_json["errors"][0]["message"]}')
+
             profile_data = response_json['data']['telegramGameGetConfig']
 
             return profile_data
@@ -132,6 +138,72 @@ class Tapper:
             logger.error(f"{self.session_name} | Unknown error while getting Profile Data: {error}")
             await asyncio.sleep(delay=3)
 
+    async def get_bot_config(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.TapbotConfig,
+                'query': Query.TapbotConfig,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'get_bot_config msg: {response_json["errors"][0]["message"]}')
+
+            return response_json['data']['telegramGameTapbotGetConfig']
+        except Exception as error:
+            logger.error(f"{self.session_name} | Unknown error while getting TapBot Data: {error}")
+            await asyncio.sleep(delay=3)
+
+    async def start_bot(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.TapbotStart,
+                'query': Query.TapbotStart,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'start_bot msg: {response_json["errors"][0]["message"]}')
+
+            return response_json['data']['telegramGameTapbotStart']
+        except Exception as error:
+            logger.error(f"{self.session_name} | ❗️Unknown error while Starting Bot: {error}")
+            await asyncio.sleep(delay=3)
+
+            return False
+
+    async def claim_bot(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.TapbotClaim,
+                'query': Query.TapbotClaim,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'claim_bot msg: {response_json["errors"][0]["message"]}')
+
+            return response_json['data']['telegramGameTapbotClaimCoins']
+
+        except Exception as error:
+            logger.error(f"{self.session_name} | ❗️Unknown error while Claiming Bot: {error}")
+
+            return False
 
     async def set_next_boss(self, http_client: aiohttp.ClientSession):
         try:
@@ -143,6 +215,11 @@ class Tapper:
 
             response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
             response.raise_for_status()
+
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'set_next_boss msg: {response_json["errors"][0]["message"]}')
 
             return True
         except Exception as error:
@@ -164,6 +241,11 @@ class Tapper:
             response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
             response.raise_for_status()
 
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'apply_boost msg: {response_json["errors"][0]["message"]}')
+
             return True
         except Exception as error:
             logger.error(f"{self.session_name} | Unknown error while Apply {boost_type} Boost: {error}")
@@ -184,6 +266,11 @@ class Tapper:
             response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
             response.raise_for_status()
 
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'upgrade_boost msg: {response_json["errors"][0]["message"]}')
+
             return True
         except Exception:
             return False
@@ -196,7 +283,7 @@ class Tapper:
                 vector.append(str(randint(1, 4)))
 
             vector = ','.join(vector)
-            
+
             json_data = {
                 'operationName': OperationName.MutationGameProcessTapsBatch,
                 'query': Query.MutationGameProcessTapsBatch,
@@ -213,6 +300,10 @@ class Tapper:
             response.raise_for_status()
 
             response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'send_taps msg: {response_json["errors"][0]["message"]}')
+
             profile_data = response_json['data']['telegramGameProcessTapsBatch']
 
             return profile_data
@@ -267,12 +358,27 @@ class Tapper:
                         await asyncio.sleep(delay=.5)
 
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
+                    bot_config = await self.get_bot_config(http_client=http_client)
+
+                    available_energy = profile_data['currentEnergy']
+                    need_energy = taps * profile_data['weaponLevel']
 
                     if active_turbo:
                         taps += settings.ADD_TAPS_ON_TURBO
+                        need_energy = 0
                         if time() - turbo_time > 10:
                             active_turbo = False
                             turbo_time = 0
+
+                    if need_energy > available_energy or available_energy - need_energy < settings.MIN_AVAILABLE_ENERGY:
+                        logger.warning(f"{self.session_name} | Need more energy ({available_energy}/{need_energy}, min: {settings.MIN_AVAILABLE_ENERGY}) for {taps} taps")
+
+                        sleep_between_clicks = randint(a=settings.SLEEP_BETWEEN_TAP[0], b=settings.SLEEP_BETWEEN_TAP[1])
+                        logger.info(f"Sleep {sleep_between_clicks}s")
+                        await asyncio.sleep(delay=sleep_between_clicks)
+                        # update profile data
+                        profile_data = await self.get_profile_data(http_client=http_client)
+                        continue
 
                     profile_data = await self.send_taps(http_client=http_client, nonce=nonce, taps=taps)
 
@@ -300,7 +406,8 @@ class Tapper:
 
                     logger.success(f"{self.session_name} | Successful tapped! | "
                                    f"Balance: <c>{balance}</c> (<g>+{calc_taps}</g>) | "
-                                   f"Boss health: <e>{boss_current_health}</e>")
+                                   f"Boss health: <e>{boss_current_health}</e> | "
+                                   f"Energy: <c>{available_energy}</c>")
 
                     if boss_current_health <= 0:
                         logger.info(f"{self.session_name} | Setting next boss: <m>{current_boss_level+1}</m> lvl")
@@ -341,30 +448,79 @@ class Tapper:
 
                             continue
 
+                        if settings.USE_TAP_BOT is True:
+                            if bot_config['isPurchased'] is True:
+                                if bot_config['endsAt']:
+                                    # Bot started
+                                    ends_date_time = datetime.strptime(bot_config['endsAt'], '%Y-%m-%dT%H:%M:%S.%f%z')
+                                    ends_time = int(ends_date_time.timestamp())
+
+                                    if ends_time < int(time()):
+                                        # claim?
+                                        logger.info(f"{self.session_name} | Sleep 5s before claim the TapBot")
+                                        await asyncio.sleep(delay=5)
+
+                                        claim_data = await self.claim_bot(http_client=http_client)
+
+                                        bot_config = await self.get_bot_config(http_client=http_client)
+                                    else:
+                                        logger.info(f"{self.session_name} | Bot is working now")
+                                else:
+                                    if bot_config['usedAttempts'] < bot_config['totalAttempts']:
+                                        # Start?
+                                        logger.info(f"{self.session_name} | Sleep 5s before start the TapBot")
+                                        await asyncio.sleep(delay=5)
+
+                                        # Start bot!
+                                        start_data = await self.start_bot(http_client=http_client)
+
+                                        # Refresh config
+                                        bot_config = await self.get_bot_config(http_client=http_client)
+                                    else:
+                                        logger.info(
+                                            f"{self.session_name} | Bot not ready ({bot_config['usedAttempts']}/{bot_config['totalAttempts']})")
+                            else:
+                                logger.warning(f"{self.session_name} | Bot not purchased yet")
+
                         if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
-                            status = await self.upgrade_boost(http_client=http_client,
-                                                              boost_type=UpgradableBoostType.TAP)
-                            if status is True:
-                                logger.success(f"{self.session_name} | Tap upgraded to {next_tap_level} lvl")
+                            need_balance = 1000 * (2 ** (next_tap_level - 1))
 
-                                await asyncio.sleep(delay=1)
+                            if balance > need_balance:
+                                status = await self.upgrade_boost(http_client=http_client,
+                                                                  boost_type=UpgradableBoostType.TAP)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | Tap upgraded to {next_tap_level} lvl")
 
+                                    await asyncio.sleep(delay=1)
+                            else:
+                                logger.warning(f"{self.session_name} | Need more gold for upgrade tap to {next_tap_level} lvl ({balance}/{need_balance})")
 
                         if settings.AUTO_UPGRADE_ENERGY is True and next_energy_level <= settings.MAX_ENERGY_LEVEL:
-                            status = await self.upgrade_boost(http_client=http_client,
-                                                              boost_type=UpgradableBoostType.ENERGY)
-                            if status is True:
-                                logger.success(f"{self.session_name} | Energy upgraded to {next_energy_level} lvl")
+                            need_balance = 1000 * (2 ** (next_energy_level - 1))
+                            if balance > need_balance:
+                                status = await self.upgrade_boost(http_client=http_client,
+                                                                  boost_type=UpgradableBoostType.ENERGY)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | Energy upgraded to {next_energy_level} lvl")
 
-                                await asyncio.sleep(delay=1)
+                                    await asyncio.sleep(delay=1)
+                            else:
+                                logger.warning(
+                                    f"{self.session_name} | Need more gold for upgrade energy to {next_energy_level} lvl ({balance}/{need_balance})")
 
                         if settings.AUTO_UPGRADE_CHARGE is True and next_charge_level <= settings.MAX_CHARGE_LEVEL:
-                            status = await self.upgrade_boost(http_client=http_client,
-                                                              boost_type=UpgradableBoostType.CHARGE)
-                            if status is True:
-                                logger.success(f"{self.session_name} | Charge upgraded to {next_charge_level} lvl")
+                            need_balance = 1000 * (2 ** (next_charge_level - 1))
 
-                                await asyncio.sleep(delay=1)
+                            if balance > need_balance:
+                                status = await self.upgrade_boost(http_client=http_client,
+                                                                  boost_type=UpgradableBoostType.CHARGE)
+                                if status is True:
+                                    logger.success(f"{self.session_name} | Charge upgraded to {next_charge_level} lvl")
+
+                                    await asyncio.sleep(delay=1)
+                            else:
+                                logger.warning(
+                                    f"{self.session_name} | Need more gold for upgrade charge to {next_energy_level} lvl ({balance}/{need_balance})")
 
                         if available_energy < settings.MIN_AVAILABLE_ENERGY:
                             logger.info(f"{self.session_name} | Minimum energy reached: {available_energy}")
@@ -373,6 +529,12 @@ class Tapper:
                             await asyncio.sleep(delay=settings.SLEEP_BY_MIN_ENERGY)
 
                             continue
+
+                except InvalidProtocol as error:
+                    if settings.EMERGENCY_STOP is True:
+                        raise error
+                    else:
+                        logger.error(f"{self.session_name} | Warning! Invalid protocol detected in {error}")
 
                 except InvalidSession as error:
                     raise error
@@ -394,5 +556,7 @@ class Tapper:
 async def run_tapper(tg_client: Client, proxy: str | None):
     try:
         await Tapper(tg_client=tg_client).run(proxy=proxy)
+    except InvalidProtocol as error:
+        logger.error(f"{tg_client.name} | Invalid protocol detected at {error}")
     except InvalidSession:
         logger.error(f"{tg_client.name} | Invalid Session")
