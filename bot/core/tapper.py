@@ -108,6 +108,10 @@ class Tapper:
             response.raise_for_status()
 
             response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'get_profile_data msg: {response_json["errors"][0]["message"]}')
+
             access_token = response_json['data']['telegramUserLogin']['access_token']
 
             return access_token
@@ -325,7 +329,8 @@ class Tapper:
         active_turbo = False
 
         ssl_context = TLSv1_3_BYPASS.create_ssl_context()
-        conn = ProxyConnector(ssl_context=ssl_context).from_url(proxy) if proxy else aiohttp.TCPConnector(ssl=ssl_context)
+        conn = ProxyConnector(ssl_context=ssl_context).from_url(proxy) if proxy else aiohttp.TCPConnector(
+            ssl=ssl_context)
 
         async with aiohttp.ClientSession(headers=headers, connector=conn) as http_client:
             if proxy:
