@@ -325,7 +325,7 @@ class Tapper:
         active_turbo = False
 
         ssl_context = TLSv1_3_BYPASS.create_ssl_context()
-        conn = ProxyConnector(ssl=ssl_context).from_url(proxy) if proxy else aiohttp.TCPConnector(ssl=ssl_context)
+        conn = ProxyConnector(ssl_context=ssl_context).from_url(proxy) if proxy else aiohttp.TCPConnector(ssl=ssl_context)
 
         async with aiohttp.ClientSession(headers=headers, connector=conn) as http_client:
             if proxy:
@@ -338,6 +338,9 @@ class Tapper:
 
                         tg_web_data = await self.get_tg_web_data(proxy=proxy)
                         access_token = await self.get_access_token(http_client=http_client, tg_web_data=tg_web_data)
+
+                        if not access_token:
+                            continue
 
                         http_client.headers["Authorization"] = f"Bearer {access_token}"
 
