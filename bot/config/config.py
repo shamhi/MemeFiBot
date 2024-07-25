@@ -17,7 +17,7 @@ class Settings(BaseSettings):
     AUTO_UPGRADE_ENERGY: bool = True
     MAX_ENERGY_LEVEL: int = 5
     AUTO_UPGRADE_CHARGE: bool = True
-    MAX_CHARGE_LEVEL: int = 5
+    MAX_CHARGE_LEVEL: int = 3
 
     APPLY_DAILY_ENERGY: bool = True
     APPLY_DAILY_TURBO: bool = True
