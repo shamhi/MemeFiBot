@@ -317,8 +317,8 @@ class Tapper:
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
-            response = await http_client.get(url='https://httpbin.org/ip', timeout=aiohttp.ClientTimeout(5))
-            ip = (await response.json()).get('origin')
+            response = await http_client.get(url='https://api.ipify.org?format=json', timeout=aiohttp.ClientTimeout(5))
+            ip = (await response.json()).get('ip')
             logger.info(f"{self.session_name} | Proxy IP: {ip}")
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
