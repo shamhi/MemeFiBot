@@ -10,3 +10,4 @@ class UpgradableBoostType(str, Enum):
     TAP = "Damage"
     ENERGY = "EnergyCap"
     CHARGE = "EnergyRechargeRate"
+    TAPBOT = "TapBot"
