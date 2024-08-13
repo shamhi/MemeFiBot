@@ -503,6 +503,19 @@ class Tapper:
                             continue
 
                         if settings.USE_TAP_BOT is True:
+                            if bot_config['isPurchased'] is False:
+                                if balance >= 200000:
+                                    await self.upgrade_boost(http_client=http_client,
+                                                             boost_type=UpgradableBoostType.TAPBOT)
+                                    logger.info(f"{self.session_name} | Tapbot was purchased - Sleep 3s")
+                                    await asyncio.sleep(delay=3)
+                                    bot_config = await self.get_bot_config(http_client=http_client)
+                                else:
+                                    logger.info(
+                                        f"{self.session_name} | Tapbot wasn't purchased due to insufficient balance - Sleep 3s")
+                                    await asyncio.sleep(delay=3)
+                                    bot_config = await self.get_bot_config(http_client=http_client)
+
                             if bot_config['isPurchased'] is True:
                                 if bot_config['endsAt']:
                                     ends_date_time = datetime.strptime(bot_config['endsAt'], '%Y-%m-%dT%H:%M:%S.%f%z')
