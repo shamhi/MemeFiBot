@@ -257,6 +257,29 @@ class Tapper:
 
             return False
 
+    async def play_slotmachine(self, http_client: aiohttp.ClientSession):
+        try:
+            json_data = {
+                'operationName': OperationName.SlotMachineSpin,
+                'query': Query.SlotMachineSpin,
+                'variables': {}
+            }
+
+            response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
+            response.raise_for_status()
+
+            response_json = await response.json()
+
+            if 'errors' in response_json:
+                raise InvalidProtocol(f'upgrade_boost msg: {response_json["errors"][0]["message"]}')
+
+            reward_type = response_json['data']['slotMachineSpin']['rewardType']
+            reward_amount = response_json['data']['slotMachineSpin']['rewardAmount']
+
+            return reward_type, reward_amount,
+        except Exception:
+            return None, None
+
     async def upgrade_boost(self, http_client: aiohttp.ClientSession, boost_type: UpgradableBoostType):
         try:
             json_data = {
@@ -317,8 +340,8 @@ class Tapper:
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
-            response = await http_client.get(url='https://httpbin.org/ip', timeout=aiohttp.ClientTimeout(5))
-            ip = (await response.json()).get('origin')
+            response = await http_client.get(url='https://api.ipify.org?format=json', timeout=aiohttp.ClientTimeout(5))
+            ip = (await response.json()).get('ip')
             logger.info(f"{self.session_name} | Proxy IP: {ip}")
         except Exception as error:
             logger.error(f"{self.session_name} | Proxy: {proxy} | Error: {error}")
@@ -366,6 +389,23 @@ class Tapper:
                                     f"Boss health: <e>{boss_current_health}</e> out of <r>{boss_max_health}</r>")
 
                         await asyncio.sleep(delay=.5)
+
+                    spins = profile_data.get('spinEnergyTotal', 0)
+                    while spins > 0:
+                        await asyncio.sleep(delay=1)
+
+                        reward_type, reward_amount = await self.play_slotmachine(http_client=http_client)
+
+                        logger.info(f"{self.session_name} | "
+                                    f"In SlotMachine you won: <lg>+{reward_amount}</lg> <lm>{reward_type}</lm> | "
+                                    f"Spins: <le>{spins}</le>")
+
+                        await asyncio.sleep(delay=3)
+
+                        profile_data = await self.get_profile_data(http_client=http_client)
+                        spins = profile_data.get('spinEnergyTotal', 0)
+
+                        await asyncio.sleep(delay=1)
 
                     taps = randint(a=settings.RANDOM_TAPS_COUNT[0], b=settings.RANDOM_TAPS_COUNT[1])
                     bot_config = await self.get_bot_config(http_client=http_client)
