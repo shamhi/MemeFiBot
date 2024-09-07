@@ -587,7 +587,7 @@ class Tapper:
                             bot_config = await self.get_bot_config(http_client=http_client)
 
                             is_purchased = bot_config.get('isPurchased', False)
-                            ends_at = bot_config.get('endsAt', '2124-09-07T16:11:29.000Z')
+                            ends_at = bot_config.get('endsAt', '2124-09-07T16:11:29.000Z') or '2124-09-07T16:11:29.000Z'
                             ends_at_date = datetime.strptime(ends_at, '%Y-%m-%dT%H:%M:%S.%f%z')
                             custom_ends_at_date = ends_at_date.strftime('%d.%m.%Y %H:%M:%S')
                             ends_at_timestamp = ends_at_date.timestamp()
@@ -686,6 +686,7 @@ class Tapper:
                         raise error
                     else:
                         logger.error(f"{self.session_name} | ⚠ Warning! Invalid protocol detected in {error}")
+                        await asyncio.sleep(delay=randint(a=3, b=7))
 
                 except InvalidSession as error:
                     raise error
