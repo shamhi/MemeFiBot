@@ -1,5 +1,8 @@
-def calculate_multiplier(spins, variables):
-    for v in variables[::-1]:
-        if spins >= v:
-            return v
-    return 1
+import bisect
+
+
+def calculate_spin_multiplier(spins):
+    variables = [1, 2, 3, 5, 10, 50, 150]
+    idx = bisect.bisect_right(variables, spins) - 1
+
+    return variables[idx] if idx >= 0 else 1

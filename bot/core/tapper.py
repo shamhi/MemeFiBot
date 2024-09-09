@@ -15,6 +15,7 @@ from bot.config import settings
 from bot.utils import logger
 from bot.utils.graphql import Query, OperationName
 from bot.utils.boosts import FreeBoostType, UpgradableBoostType
+from bot.utils.scripts import calculate_spin_multiplier
 from bot.exceptions import InvalidSession, InvalidProtocol
 from .TLS import TLSv1_3_BYPASS
 from .headers import headers
@@ -319,12 +320,13 @@ class Tapper:
 
             return False
 
-    async def play_slotmachine(self, http_client: aiohttp.ClientSession):
+    async def play_slotmachine(self, http_client: aiohttp.ClientSession, spins: int):
         try:
+            spin_multiplier = calculate_spin_multiplier(spins=spins)
             json_data = {
                 'operationName': OperationName.SlotMachineSpin,
                 'query': Query.SlotMachineSpin,
-                'variables': {}
+                'variables': {'payload': {'spinsCount': spin_multiplier}}
             }
 
             response = await http_client.post(url=self.GRAPHQL_URL, json=json_data)
@@ -475,7 +477,7 @@ class Tapper:
                     while spins > 0:
                         await asyncio.sleep(delay=1)
 
-                        reward_type, reward_amount = await self.play_slotmachine(http_client=http_client)
+                        reward_type, reward_amount = await self.play_slotmachine(http_client=http_client, spins=spins)
 
                         logger.info(f"{self.session_name} | "
                                     f"In SlotMachine you won: <lg>+{reward_amount:,}</lg> <lm>{reward_type}</lm> | "
