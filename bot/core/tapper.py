@@ -320,12 +320,11 @@ class Tapper:
 
             return False
 
-    async def play_slotmachine(self, http_client: aiohttp.ClientSession, spins: int):
+    async def play_slotmachine(self, http_client: aiohttp.ClientSession, spin_multiplier: int):
         try:
-            spin_multiplier = calculate_spin_multiplier(spins=spins)
             json_data = {
-                'operationName': OperationName.SlotMachineSpin,
-                'query': Query.SlotMachineSpin,
+                'operationName': OperationName.SpinSlotMachine,
+                'query': Query.SpinSlotMachine,
                 'variables': {'payload': {'spinsCount': spin_multiplier}}
             }
 
@@ -337,12 +336,11 @@ class Tapper:
             if 'errors' in response_json:
                 raise InvalidProtocol(f'upgrade_boost msg: {response_json["errors"][0]["message"]}')
 
-            reward_type = response_json['data']['slotMachineSpin']['rewardType']
-            reward_amount = response_json['data']['slotMachineSpin']['rewardAmount']
+            play_data = response_json.get('data', {}).get('slotMachineSpinV2', {})
 
-            return reward_type, reward_amount,
+            return play_data
         except Exception:
-            return None, None
+            return {}
 
     async def upgrade_boost(self, http_client: aiohttp.ClientSession, boost_type: UpgradableBoostType):
         try:
@@ -408,6 +406,30 @@ class Tapper:
                 await asyncio.sleep(delay=3)
 
         return {}
+
+    async def start_tapbot(self, http_client: aiohttp.ClientSession, bot_config: dict):
+        used_attempts = bot_config.get('usedAttempts', 0)
+        total_attempts = bot_config.get('totalAttempts', 0)
+
+        if used_attempts < total_attempts:
+            logger.info(f"{self.session_name} | Sleep 5s before start the TapBot")
+            await asyncio.sleep(5)
+
+            start_data = await self.start_bot(http_client=http_client)
+            if start_data:
+                damage_per_sec = start_data.get('damagePerSec', 0)
+                logger.success(f"{self.session_name} | Successfully started TapBot | "
+                               f"Damage per second: <le>{damage_per_sec}</le> points")
+        else:
+            logger.info(f"{self.session_name} | TapBot attempts are spent | "
+                        f"<ly>{used_attempts}</ly><lw>/</lw><le>{total_attempts}</le>")
+
+    async def purchase_and_start_tapbot(self, http_client: aiohttp.ClientSession, bot_config: dict):
+        status = await self.upgrade_boost(http_client=http_client, boost_type=UpgradableBoostType.TAPBOT)
+        if status:
+            logger.success(f"{self.session_name} | Successfully purchased TapBot")
+            await asyncio.sleep(1)
+            await self.start_tapbot(http_client, bot_config)
 
     async def check_proxy(self, http_client: aiohttp.ClientSession, proxy: Proxy) -> None:
         try:
@@ -477,16 +499,18 @@ class Tapper:
                     while spins > 0:
                         await asyncio.sleep(delay=1)
 
-                        reward_type, reward_amount = await self.play_slotmachine(http_client=http_client, spins=spins)
+                        spin_multiplier = calculate_spin_multiplier(spins=spins)
+                        play_data = await self.play_slotmachine(http_client=http_client,
+                                                                spin_multiplier=spin_multiplier)
 
-                        logger.info(f"{self.session_name} | "
-                                    f"In SlotMachine you won: <lg>+{reward_amount:,}</lg> <lm>{reward_type}</lm> | "
-                                    f"Spins: <le>{spins:,}</le>")
+                        reward_amount = play_data.get('spinResults', [{}])[0].get('rewardAmount', 0)
+                        reward_type = play_data.get('spinResults', [{}])[0].get('rewardType', 'NO')
+                        spins = play_data.get('gameConfig', {}).get('spinEnergyTotal', 0)
+                        balance = play_data.get('gameConfig', {}).get('coinsAmount', 0)
 
-                        await asyncio.sleep(delay=3)
-
-                        profile_data = await self.get_profile_data(http_client=http_client)
-                        spins = profile_data.get('spinEnergyTotal', 0)
+                        logger.info(f"{self.session_name} | Successfully played in slot machine | "
+                                    f"Balance: <lc>{balance:,}</lc> (<lg>+{reward_amount:,}</lg> <lm>{reward_type}</lm>) | "
+                                    f"Spins: <le>{spins:,}</le> (<lr>-{spin_multiplier:,}</lr>")
 
                         await asyncio.sleep(delay=1)
 
@@ -589,63 +613,32 @@ class Tapper:
                             bot_config = await self.get_bot_config(http_client=http_client)
 
                             is_purchased = bot_config.get('isPurchased', False)
-                            ends_at = bot_config.get('endsAt', '2124-09-07T16:11:29.000Z') or '2124-09-07T16:11:29.000Z'
-                            ends_at_date = datetime.strptime(ends_at, '%Y-%m-%dT%H:%M:%S.%f%z')
-                            custom_ends_at_date = ends_at_date.strftime('%d.%m.%Y %H:%M:%S')
-                            ends_at_timestamp = ends_at_date.timestamp()
+                            ends_at = bot_config.get('endsAt', None)
 
-                            if not is_purchased:
-                                status = await self.upgrade_boost(http_client=http_client,
-                                                                  boost_type=UpgradableBoostType.TAPBOT)
-                                if status is True:
-                                    logger.success(f"{self.session_name} | Successfully purchased TapBot")
+                            if not ends_at:
+                                if is_purchased:
+                                    await self.start_tapbot(http_client, bot_config)
+                                else:
+                                    await self.purchase_and_start_tapbot(http_client, bot_config)
+                            else:
+                                ends_at_date = datetime.strptime(ends_at, '%Y-%m-%dT%H:%M:%S.%f%z')
+                                custom_ends_at_date = ends_at_date.strftime('%d.%m.%Y %H:%M:%S')
+                                ends_at_timestamp = ends_at_date.timestamp()
 
-                                    await asyncio.sleep(delay=1)
+                                if ends_at_logged_time <= time():
+                                    logger.info(f"{self.session_name} | TapBot ends at: <ly>{custom_ends_at_date}</ly>")
+                                    ends_at_logged_time = time() + 900
 
-                                    used_attempts = bot_config.get('usedAttempts', 0)
-                                    total_attempts = bot_config.get('totalAttempts', 0)
+                                if ends_at_timestamp < time():
+                                    logger.info(f"{self.session_name} | Sleep <lw>5s</lw> before claim TapBot")
+                                    await asyncio.sleep(5)
 
-                                    if used_attempts < total_attempts:
-                                        logger.info(f"{self.session_name} | Sleep 5s before start the TapBot")
-                                        await asyncio.sleep(delay=5)
-
-                                        start_data = await self.start_bot(http_client=http_client)
-                                        if start_data:
-                                            damage_per_sec = start_data.get('damagePerSec', 0)
-                                            logger.success(f"{self.session_name} | Successfully started TapBot | "
-                                                           f"Damage per second: <le>{damage_per_sec}</le> points")
-                                    else:
-                                        logger.info(f"{self.session_name} | TapBot attempts are spent | "
-                                                    f"<ly>{used_attempts}</ly><lw>/</lw><le>{total_attempts}</le>")
-
-                            if ends_at_logged_time <= time():
-                                logger.info(f"{self.session_name} | TapBot ends at: <ly>{custom_ends_at_date}</ly>")
-
-                                ends_at_logged_time = time() + 900
-
-                            if ends_at_timestamp < time():
-                                logger.info(f"{self.session_name} | Sleep <lw>5s</lw> before claim TapBot")
-                                await asyncio.sleep(delay=5)
-
-                                claim_data = await self.claim_bot(http_client=http_client)
-                                if claim_data:
-                                    logger.success(f"{self.session_name} | Successfully claimed TapBot")
-
-                                    used_attempts = bot_config.get('usedAttempts', 0)
-                                    total_attempts = bot_config.get('totalAttempts', 0)
-
-                                    if used_attempts < total_attempts:
-                                        logger.info(f"{self.session_name} | Sleep 5s before start the TapBot")
-                                        await asyncio.sleep(delay=5)
-
-                                        start_data = await self.start_bot(http_client=http_client)
-                                        if start_data:
-                                            damage_per_sec = start_data.get('damagePerSec', 0)
-                                            logger.success(f"{self.session_name} | Successfully started TapBot | "
-                                                           f"Damage per second: <le>{damage_per_sec}</le> points")
-                                    else:
-                                        logger.info(f"{self.session_name} | TapBot attempts are spent | "
-                                                    f"<ly>{used_attempts}</ly><lw>/</lw><le>{total_attempts}</le>")
+                                    claim_data = await self.claim_bot(http_client=http_client)
+                                    if claim_data:
+                                        logger.success(f"{self.session_name} | Successfully claimed TapBot")
+                                        await self.start_tapbot(http_client, bot_config)
+                                elif not is_purchased:
+                                    await self.purchase_and_start_tapbot(http_client, bot_config)
 
                         if settings.AUTO_UPGRADE_TAP is True and next_tap_level <= settings.MAX_TAP_LEVEL:
                             need_balance = 1000 * (2 ** (next_tap_level - 1))
