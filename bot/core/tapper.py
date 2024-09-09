@@ -510,7 +510,7 @@ class Tapper:
 
                         logger.info(f"{self.session_name} | Successfully played in slot machine | "
                                     f"Balance: <lc>{balance:,}</lc> (<lg>+{reward_amount:,}</lg> <lm>{reward_type}</lm>) | "
-                                    f"Spins: <le>{spins:,}</le> (<lr>-{spin_multiplier:,}</lr>")
+                                    f"Spins: <le>{spins:,}</le> (<lr>-{spin_multiplier:,}</lr>)")
 
                         await asyncio.sleep(delay=1)
 
