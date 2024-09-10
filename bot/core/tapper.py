@@ -108,7 +108,6 @@ class Tapper:
         for _ in range(5):
             try:
                 response = await http_client.post(url=self.GRAPHQL_URL, json=tg_web_data)
-                print(await response.text())
                 response.raise_for_status()
 
                 response_json = await response.json()
