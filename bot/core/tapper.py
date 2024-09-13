@@ -1,4 +1,4 @@
-import asyncio
+import asyncio, random
 from time import time
 from random import randint
 from datetime import datetime
@@ -466,6 +466,7 @@ class Tapper:
                             return
 
                         access_token = await self.get_access_token(http_client=http_client, tg_web_data=tg_web_data)
+
                         if not access_token:
                             await asyncio.sleep(delay=5)
                             continue
@@ -474,13 +475,6 @@ class Tapper:
 
                         access_token_created_time = time()
 
-                        ip="127.%s.%s.%s"%(random.randint(1,100),random.randint(1,100),random.randint(1,100))
-                        http_client.headers['X-Forwarded-For'] = ip
-                        http_client.headers['X-Forwarded-Host']= ip
-                        http_client.headers['X-Client-IP'] = ip
-                        http_client.headers['X-Remote-IP'] = ip
-                        http_client.headers['X-Remote-Addr'] = ip
-                        http_client.headers['X-Host'] = ip
                         await self.get_telegram_me(http_client=http_client)
 
                         profile_data = await self.get_profile_data(http_client=http_client)
