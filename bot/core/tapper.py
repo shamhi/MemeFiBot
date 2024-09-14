@@ -472,7 +472,13 @@ class Tapper:
                             continue
 
                         http_client.headers["Authorization"] = f"Bearer {access_token}"
-
+                        ip="%s.%s.%s.%s"%(random.randint(1,225),random.randint(1,225),random.randint(1,225),random.randint(1,225))
+                        http_client.headers['X-Forwarded-For'] = ip
+                        http_client.headers['X-Forwarded-Host']= ip
+                        http_client.headers['X-Client-IP'] = ip
+                        http_client.headers['X-Remote-IP'] = ip
+                        http_client.headers['X-Remote-Addr'] = ip
+                        http_client.headers['X-Host'] = ip
                         access_token_created_time = time()
 
                         await self.get_telegram_me(http_client=http_client)
@@ -705,6 +711,13 @@ class Tapper:
                         raise error
                     else:
                         logger.error(f"{self.session_name} | ⚠ Warning! Invalid protocol detected in {error}")
+                        ip="%s.%s.%s.%s"%(random.randint(1,225),random.randint(1,225),random.randint(1,225),random.randint(1,225))
+                        http_client.headers['X-Forwarded-For'] = ip
+                        http_client.headers['X-Forwarded-Host']= ip
+                        http_client.headers['X-Client-IP'] = ip
+                        http_client.headers['X-Remote-IP'] = ip
+                        http_client.headers['X-Remote-Addr'] = ip
+                        http_client.headers['X-Host'] = ip
                         await asyncio.sleep(delay=randint(a=3, b=7))
 
                 except InvalidSession as error:
