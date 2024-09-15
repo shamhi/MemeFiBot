@@ -334,9 +334,6 @@ class Tapper:
 
             response_json = await response.json()
 
-            if 'errors' in response_json:
-                raise InvalidProtocol(f'upgrade_boost msg: {response_json["errors"][0]["message"]}')
-
             play_data = response_json.get('data', {}).get('slotMachineSpinV2', {})
 
             return play_data
