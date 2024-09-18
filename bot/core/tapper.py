@@ -286,9 +286,6 @@ class Tapper:
 
             response_json = await response.json()
 
-            if 'errors' in response_json:
-                raise InvalidProtocol(f'set_next_boss msg: {response_json["errors"][0]["message"]}')
-
             return True
         except Exception as error:
             logger.error(f"{self.session_name} | ❗️ Unknown error while Setting Next Boss: {error}")
