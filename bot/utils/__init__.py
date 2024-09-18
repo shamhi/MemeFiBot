@@ -7,5 +7,6 @@ from . import scripts
 
 import os
 
-if not os.path.exists(path='sessions'):
-    os.mkdir(path='sessions')
+#There should be no argument attached to the os.path.exists()
+if not os.path.exists('sessions'):
+    os.makedirs('sessions')
